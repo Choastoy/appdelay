@@ -2,79 +2,71 @@ import streamlit as st
 import pandas as pd
 
 # Configuração da Página
-st.set_page_config(page_title="AudioAlign Pro - Engenharia de Sistemas", layout="wide")
+st.set_page_config(page_title="AudioAlign Multi-Tower Pro", page_icon="🔊", layout="wide")
 
 def calcular_v_som(t):
     return 331.3 + (0.606 * t)
 
-# --- ESTILIZAÇÃO ---
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    .stMetric { background-color: #1e2130; padding: 15px; border-radius: 10px; border: 1px solid #4b5062; }
-    </style>
-    """, unsafe_allow_html=True)
+st.title("🔊 AudioAlign Multi-Tower Pro")
+st.markdown("### Gestão de Alinhamento para Múltiplas Torres de Delay")
 
-st.title("🔊 AudioAlign Pro: Calculadora de Delay")
-st.markdown("### Ferramenta de Alinhamento Temporal para Engenheiros de Sistemas")
-
-# --- BARRA LATERAL (INPUTS) ---
-st.sidebar.header("⚙️ Parâmetros de Campo")
-
-temp = st.sidebar.slider("Temperatura Ambiente (°C)", min_value=-10.0, max_value=50.0, value=25.0, step=0.5)
-distancia_m = st.sidebar.number_input("Distância entre Fontes (Metros)", min_value=0.0, value=20.0, step=0.1)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Ajustes de Processamento")
-haas = st.sidebar.slider("Haas Offset (ms) - Localização Visual", 0.0, 20.0, 10.0, help="Adiciona um leve atraso para 'puxar' a imagem sonora para o palco.")
-latencia_dsp = st.sidebar.number_input("Latência do Processador (ms)", value=0.0, step=0.1)
-
-st.sidebar.markdown("---")
-frequencia_alvo = st.sidebar.number_input("Frequência de Cruzamento (Hz)", value=100, step=10)
-
-# --- CÁLCULOS TÉCNICOS ---
+# --- BARRA LATERAL: PARÂMETROS GLOBAIS ---
+st.sidebar.header("🌡️ Parâmetros Ambientais")
+temp = st.sidebar.slider("Temperatura Local (°C)", -10.0, 50.0, 25.0, 0.5)
 v_som = calcular_v_som(temp)
-tempo_puro_ms = (distancia_m / v_som) * 1000
-delay_final_ms = tempo_puro_ms + haas - latencia_dsp
-distancia_virtual = (delay_final_ms / 1000) * v_som
-comprimento_onda = v_som / frequencia_alvo if frequencia_alvo > 0 else 0
 
-# --- EXIBIÇÃO DE RESULTADOS ---
-col1, col2, col3 = st.columns(3)
+st.sidebar.markdown("---")
+st.sidebar.header("🛠️ Ajustes Globais")
+haas_global = st.sidebar.slider("Haas Offset Padrão (ms)", 0.0, 20.0, 7.0)
+latencia_dsp = st.sidebar.number_input("Latência do Processador (ms)", 0.0, 5.0, 0.0, 0.1)
 
-with col1:
-    st.metric(label="VELOCIDADE DO SOM", value=f"{v_som:.2f} m/s")
-    st.caption(f"Baseado em {temp}°C")
+# --- CONFIGURAÇÃO DAS TORRES ---
+st.markdown("---")
+num_torres = st.number_input("Quantidade de Torres de Delay", min_value=1, max_value=20, value=2)
 
-with col2:
-    st.metric(label="TEMPO DE PROPAGAÇÃO", value=f"{tempo_puro_ms:.2f} ms")
-    st.caption(f"Distância física pura: {distancia_m}m")
+st.markdown("#### Insira a distância de cada torre em relação ao Main PA (Palco)")
 
-with col3:
-    st.metric(label="VALOR NO PROCESSADOR", value=f"{delay_final_ms:.2f} ms", delta=f"{haas}ms Haas incl.")
-    st.write("---")
+# Criar uma lista para armazenar os dados das torres
+dados_torres = []
 
-# --- ÁREA DE ANÁLISE PROFISSIONAL ---
-st.markdown("### 📊 Análise de Fase e Acústica")
+# Layout de colunas dinâmicas para entrada de dados
+for i in range(int(num_torres)):
+    with st.expander(f"📍 Configuração da Torre {i+1}", expanded=True):
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            nome = st.text_input(f"Identificação da Torre", value=f"Torre {i+1}", key=f"nome_{i}")
+        with col2:
+            distancia = st.number_input(f"Distância do Palco (Metros)", min_value=0.0, value=20.0 + (i*15), step=0.1, key=f"dist_{i}")
+        with col3:
+            haas_individual = st.number_input(f"Haas Extra (ms)", value=haas_global, key=f"haas_{i}")
 
-tab1, tab2 = st.tabs(["Resumo Técnico", "Gráfico de Onda"])
+        # Cálculos para esta torre específica
+        tempo_propagacao = (distancia / v_som) * 1000
+        delay_total = tempo_propagacao + haas_individual - latencia_dsp
+        distancia_virtual = (delay_total / 1000) * v_som
+        
+        dados_torres.append({
+            "Torre": nome,
+            "Distância Real (m)": distancia,
+            "Tempo de Percurso (ms)": round(tempo_propagacao, 2),
+            "Haas (ms)": haas_individual,
+            "DELAY NO PROCESSADOR (ms)": round(delay_total, 2),
+            "Distância Virtual (m)": round(distancia_virtual, 2)
+        })
 
-with tab1:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.info(f"**Distância Acústica Virtual:** {distancia_virtual:.2f} metros")
-        st.write("Isso é onde a caixa de delay 'parece' estar localizada em relação ao PA principal.")
-    with c2:
-        st.warning(f"**Comprimento de Onda em {frequencia_alvo}Hz:** {comprimento_onda:.2f} m")
-        fase_relativa = (delay_final_ms % (1000/frequencia_alvo)) / (1000/frequencia_alvo) * 360
-        st.write(f"**Desvio de Fase estimado:** {fase_relativa:.1f}°")
+# --- TABELA DE RESUMO PARA O ENGENHEIRO ---
+st.markdown("---")
+st.subheader("📋 Mapa de Configuração (Patch de Delay)")
 
-with tab2:
-    st.write("Abaixo, uma visualização da diferença entre a distância física e o delay aplicado:")
-    chart_data = pd.DataFrame({
-        "Tipo": ["Físico (m)", "Virtual (m)"],
-        "Metros": [distancia_m, distancia_virtual]
-    })
-    st.bar_chart(chart_data.set_index("Tipo"))
+df = pd.DataFrame(dados_torres)
 
-st.success(f"Dica do Engenheiro: Para {frequencia_alvo}Hz, um delay de {delay_final_ms:.2f}ms garante o alinhamento temporal. Verifique a fase com microfone RTA para ajuste fino final.")
+# Destacar a coluna principal
+st.dataframe(df.style.highlight_max(axis=0, subset=['DELAY NO PROCESSADOR (ms)'], color='#2e3333'), use_container_width=True)
+
+# --- VISUALIZAÇÃO GRÁFICA ---
+st.markdown("### 📊 Comparativo de Profundidade Acústica")
+st.bar_chart(df.set_index("Torre")[["Distância Real (m)", "Distância Virtual (m)"]])
+
+# --- RODAPÉ TÉCNICO ---
+st.info(f"💡 Velocidade do Som hoje: {v_som:.2f} m/s. Lembre-se de conferir a fase com Ruído Rosa em cada ponto de transição entre torres.")
