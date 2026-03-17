@@ -24,7 +24,7 @@ latencia_dsp = st.sidebar.number_input("Latência do Processador (ms)", 0.0, 5.0
 st.markdown("---")
 num_torres = st.number_input("Quantidade de Torres de Delay", min_value=1, max_value=20, value=2)
 
-st.markdown("#### Insira a distância de cada torre em relação ao Main PA (Palco)")
+st.markdown("#### Insira a distância de cada torre em relação ao Main PA (Palco) ou ponto zero")
 
 # Criar uma lista para armazenar os dados das torres
 dados_torres = []
