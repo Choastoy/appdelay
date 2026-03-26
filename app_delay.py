@@ -27,7 +27,7 @@ haas_global = st.sidebar.number_input(
     "Haas Global (ms)", 
     min_value=0.0, 
     max_value=30.0, 
-    value=7.0, 
+    value=2.0, 
     step=0.1,
     help="Tempo adicional para garantir que a localização sonora venha do palco. Sugerido: 5ms a 15ms."
 )
